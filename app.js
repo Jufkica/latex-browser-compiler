@@ -1,3 +1,5 @@
+import { BusyTexRunner, PdfLatex } from "https://unpkg.com/texlyre-busytex@0.1.4-alpha/dist/index.js";
+
 const texInput = document.getElementById("texInput");
 const compileBtn = document.getElementById("compileBtn");
 const downloadBtn = document.getElementById("downloadBtn");
@@ -6,20 +8,20 @@ const logOutput = document.getElementById("logOutput");
 const pdfContainer = document.getElementById("pdfContainer");
 const statusText = document.getElementById("statusText");
 
+const BUSYTEX_BASE_PATH = "https://texlyre.github.io/texlyre-busytex/core/busytex";
 const DEFAULT_TEX = `\\documentclass{article}
-\\usepackage[utf8]{inputenc}
-\\title{Browser LaTeX Compile}
+\\title{BusyTeX Browser Compile}
 \\author{GitHub Pages Static App}
 \\date{\\today}
 \\begin{document}
 \\maketitle
-Hello from in-browser compilation.
+Hello from BusyTeX in your browser.
 \\end{document}
 `;
 
-let engine = null;
+let runner = null;
+let compiler = null;
 let pdfBlobUrl = null;
-const FORMAT_FILE_ERROR = "can't find the format file `swiftlatexpdftex.fmt`";
 
 function setStatus(text) {
   statusText.textContent = text;
@@ -27,11 +29,6 @@ function setStatus(text) {
 
 function setLog(text) {
   logOutput.textContent = text || "";
-}
-
-function appendLog(text) {
-  if (!text) return;
-  logOutput.textContent = `${logOutput.textContent || ""}\n${text}`.trim();
 }
 
 function setButtonsCompiling(isCompiling) {
@@ -57,26 +54,36 @@ function setPdfPreview(pdfBytes) {
 
 async function initEngine() {
   texInput.value = DEFAULT_TEX;
-  setStatus("Initializing engine...");
-  setLog("Loading PdfTeX WebAssembly engine...");
+  setStatus("Initializing BusyTeX...");
+  setLog("Loading BusyTeX WebAssembly runtime...");
   compileBtn.disabled = true;
 
   try {
-    engine = new PdfTeXEngine();
-    await engine.loadEngine();
+    runner = new BusyTexRunner({
+      busytexBasePath: BUSYTEX_BASE_PATH,
+      verbose: false,
+    });
+    await runner.initialize(true);
+    compiler = new PdfLatex(runner);
+
     compileBtn.disabled = false;
     compileBtn.textContent = "Compile";
     setStatus("Ready");
-    setLog("Engine ready. Click Compile.");
+    setLog("BusyTeX ready. Click Compile.");
   } catch (error) {
     setStatus("Error");
-    setLog(`Engine failed to initialize.\n${String(error)}`);
+    setLog(
+      "BusyTeX failed to initialize.\n" +
+      `${String(error)}\n\n` +
+      "The runtime assets are loaded from:\n" +
+      `${BUSYTEX_BASE_PATH}`
+    );
     compileBtn.disabled = true;
   }
 }
 
 async function compileCurrentTex() {
-  if (!engine || !engine.isReady()) {
+  if (!runner || !runner.isInitialized() || !compiler) {
     setLog("Engine is not ready yet.");
     return;
   }
@@ -86,25 +93,18 @@ async function compileCurrentTex() {
   setLog("Compiling...");
 
   try {
-    engine.writeMemFSFile("main.tex", texInput.value);
-    engine.setEngineMainFile("main.tex");
-    const result = await engine.compileLaTeX();
+    const result = await compiler.compile({
+      input: texInput.value,
+      verbose: "info",
+    });
     setLog(result.log || "");
 
-    if (result.status === 0 && result.pdf) {
+    if (result.success && result.pdf) {
       setPdfPreview(result.pdf);
       setStatus("Success");
     } else {
-      setStatus(`Failed (${result.status})`);
+      setStatus(`Failed (${result.exitCode})`);
       downloadBtn.disabled = true;
-      if ((result.log || "").toLowerCase().includes(FORMAT_FILE_ERROR)) {
-        setStatus("Mirror unavailable");
-        appendLog(
-          "[INFO] The upstream SwiftLaTeX TeX mirror is currently unavailable, " +
-          "so required format files cannot be downloaded. " +
-          "Try again later or use the desktop compiler in this repository."
-        );
-      }
     }
   } catch (error) {
     setStatus("Error");
@@ -127,7 +127,7 @@ function downloadPdf() {
   link.remove();
 }
 
-async function loadExample() {
+function loadTemplate() {
   texInput.value = DEFAULT_TEX;
   setStatus("Template loaded");
   setLog("Loaded built-in template.");
@@ -135,7 +135,12 @@ async function loadExample() {
 
 compileBtn.addEventListener("click", compileCurrentTex);
 downloadBtn.addEventListener("click", downloadPdf);
-loadExampleBtn.addEventListener("click", loadExample);
-window.addEventListener("beforeunload", revokePdfUrl);
+loadExampleBtn.addEventListener("click", loadTemplate);
+window.addEventListener("beforeunload", () => {
+  revokePdfUrl();
+  if (runner) {
+    runner.terminate();
+  }
+});
 
 initEngine();
