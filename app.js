@@ -7,7 +7,7 @@ const pdfContainer = document.getElementById("pdfContainer");
 const statusText = document.getElementById("statusText");
 
 const BUSYTEX_BASE_PATH = "https://texlyre.github.io/texlyre-busytex/core/busytex";
-const BUSYTEX_DRIVER = "pdftex_bibtex8";
+const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
 const DEFAULT_TEX = `\\documentclass{article}
 \\title{BusyTeX Browser Compile}
 \\author{GitHub Pages Static App}
@@ -104,7 +104,7 @@ async function initEngine() {
     compileBtn.disabled = false;
     compileBtn.textContent = "Compile";
     setStatus("Ready");
-    setLog("BusyTeX ready. Click Compile.");
+    setLog("BusyTeX ready (XeLaTeX mode). Click Compile.");
   } catch (error) {
     workerReady = false;
     setStatus("Error");
