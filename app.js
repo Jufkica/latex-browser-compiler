@@ -8,6 +8,8 @@ const statusText = document.getElementById("statusText");
 const startupOverlay = document.getElementById("startupOverlay");
 const startupMessage = document.getElementById("startupMessage");
 const startupDetail = document.getElementById("startupDetail");
+const logPanel = document.getElementById("logPanel");
+const logToggle = document.getElementById("logToggle");
 
 const BUSYTEX_BASE_PATH = "https://texlyre.github.io/texlyre-busytex/core/busytex";
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
@@ -43,6 +45,18 @@ function setLog(text) {
 function appendLog(text) {
   if (!text) return;
   logOutput.textContent = `${logOutput.textContent || ""}\n${text}`.trim();
+}
+
+function syncLogPanelAria() {
+  if (!logToggle || !logPanel) return;
+  const collapsed = logPanel.classList.contains("log-panel--collapsed");
+  logToggle.setAttribute("aria-expanded", String(!collapsed));
+}
+
+function setLogPanelCollapsed(collapsed) {
+  if (!logPanel) return;
+  logPanel.classList.toggle("log-panel--collapsed", collapsed);
+  syncLogPanelAria();
 }
 
 function setButtonsCompiling(isCompiling) {
@@ -131,6 +145,7 @@ async function initEngine() {
     );
     setStartupState(true, "Initialization failed", "See Compiler Log for details.");
     compileBtn.disabled = true;
+    setLogPanelCollapsed(false);
   }
 }
 
@@ -188,11 +203,13 @@ async function compileCurrentTex() {
     } else {
       setStatus(`Failed (${result.exit_code})`);
       downloadBtn.disabled = true;
+      setLogPanelCollapsed(false);
     }
   } catch (error) {
     setStatus("Error");
     setLog(`Compilation failed.\n${String(error)}`);
     downloadBtn.disabled = true;
+    setLogPanelCollapsed(false);
   } finally {
     setButtonsCompiling(false);
   }
@@ -219,6 +236,11 @@ function loadTemplate() {
 compileBtn.addEventListener("click", compileCurrentTex);
 downloadBtn.addEventListener("click", downloadPdf);
 loadExampleBtn.addEventListener("click", loadTemplate);
+logToggle?.addEventListener("click", () => {
+  logPanel?.classList.toggle("log-panel--collapsed");
+  syncLogPanelAria();
+});
+syncLogPanelAria();
 window.addEventListener("beforeunload", () => {
   revokePdfUrl();
   if (busyWorker) {

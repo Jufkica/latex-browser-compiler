@@ -7,13 +7,25 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <header class="app-topbar">
+    <div class="topbar-brand">
+      <p class="editor-kicker">Sovereign Architecturalist Interface</p>
+      <h1>TeX Browser Compiler</h1>
+    </div>
+    <nav class="topbar-actions" aria-label="Compile actions">
+      <div class="live-indicator">
+        <span class="live-dot"></span>
+        <span>Live Render</span>
+      </div>
+      <button id="loadExampleBtn" type="button" class="btn-secondary">Load template</button>
+      <button id="compileBtn" type="button" class="btn-primary" disabled>Initializing...</button>
+      <button id="downloadBtn" type="button" class="btn-tertiary" disabled>Download PDF</button>
+      <span id="statusText" class="status">Waiting</span>
+    </nav>
+  </header>
+
   <main class="workspace">
     <section class="editor-pane">
-      <header class="editor-topbar">
-        <p class="editor-kicker">Sovereign Architecturalist Interface</p>
-        <h1>TeX Browser Compiler</h1>
-      </header>
-
       <div class="editor-surface">
         <div class="line-gutter" aria-hidden="true">
           <span>01</span><span>02</span><span>03</span><span>04</span><span>05</span>
@@ -28,10 +40,6 @@
     </section>
 
     <section class="preview-pane">
-      <div class="preview-header">
-        <h2>PDF Preview</h2>
-        <span id="statusText" class="status">Waiting</span>
-      </div>
       <div class="paper-stage">
         <div id="pdfContainer" class="pdf-container">
           <p class="placeholder">Compile to preview your PDF here.</p>
@@ -40,23 +48,16 @@
     </section>
   </main>
 
-  <section class="log-panel">
-    <div class="log-header">
-      <h2>Compiler Log</h2>
-      <p class="label">Technical Trace</p>
+  <section id="logPanel" class="log-panel log-panel--collapsed" aria-label="Compiler log">
+    <button type="button" id="logToggle" class="log-toggle" aria-expanded="false" aria-controls="logOutput">
+      <span class="log-toggle-label">Compiler log</span>
+      <span class="log-toggle-hint">Technical trace</span>
+      <span class="log-toggle-chevron" aria-hidden="true"></span>
+    </button>
+    <div class="log-panel-content">
+      <pre id="logOutput"></pre>
     </div>
-    <pre id="logOutput"></pre>
   </section>
-
-  <nav class="floating-controls">
-    <div class="live-indicator">
-      <span class="live-dot"></span>
-      <span>Live Render</span>
-    </div>
-    <button id="loadExampleBtn" type="button" class="btn-secondary">Load template</button>
-    <button id="compileBtn" type="button" class="btn-primary" disabled>Initializing...</button>
-    <button id="downloadBtn" type="button" class="btn-tertiary" disabled>Download PDF</button>
-  </nav>
 
   <div id="startupOverlay" class="startup-overlay" role="status" aria-live="polite">
     <div class="startup-card">
