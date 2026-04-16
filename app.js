@@ -63,7 +63,21 @@ async function initEngine() {
       busytexBasePath: BUSYTEX_BASE_PATH,
       verbose: false,
     });
-    await runner.initialize(true);
+    try {
+      // Try worker mode first for better UI responsiveness.
+      await runner.initialize(true);
+    } catch (workerInitError) {
+      // Cross-origin worker loading can fail on some setups; fallback to direct mode.
+      setLog(
+        "Worker mode unavailable; retrying direct mode...\n" +
+        `${String(workerInitError)}`
+      );
+      runner = new BusyTexRunner({
+        busytexBasePath: BUSYTEX_BASE_PATH,
+        verbose: false,
+      });
+      await runner.initialize(false);
+    }
     compiler = new PdfLatex(runner);
 
     compileBtn.disabled = false;
