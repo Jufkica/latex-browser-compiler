@@ -19,6 +19,7 @@ Hello from in-browser compilation.
 
 let engine = null;
 let pdfBlobUrl = null;
+const FORMAT_FILE_ERROR = "can't find the format file `swiftlatexpdftex.fmt`";
 
 function setStatus(text) {
   statusText.textContent = text;
@@ -26,6 +27,11 @@ function setStatus(text) {
 
 function setLog(text) {
   logOutput.textContent = text || "";
+}
+
+function appendLog(text) {
+  if (!text) return;
+  logOutput.textContent = `${logOutput.textContent || ""}\n${text}`.trim();
 }
 
 function setButtonsCompiling(isCompiling) {
@@ -91,6 +97,14 @@ async function compileCurrentTex() {
     } else {
       setStatus(`Failed (${result.status})`);
       downloadBtn.disabled = true;
+      if ((result.log || "").toLowerCase().includes(FORMAT_FILE_ERROR)) {
+        setStatus("Mirror unavailable");
+        appendLog(
+          "[INFO] The upstream SwiftLaTeX TeX mirror is currently unavailable, " +
+          "so required format files cannot be downloaded. " +
+          "Try again later or use the desktop compiler in this repository."
+        );
+      }
     }
   } catch (error) {
     setStatus("Error");
