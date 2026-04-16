@@ -5,6 +5,9 @@ const loadExampleBtn = document.getElementById("loadExampleBtn");
 const logOutput = document.getElementById("logOutput");
 const pdfContainer = document.getElementById("pdfContainer");
 const statusText = document.getElementById("statusText");
+const startupOverlay = document.getElementById("startupOverlay");
+const startupMessage = document.getElementById("startupMessage");
+const startupDetail = document.getElementById("startupDetail");
 
 const BUSYTEX_BASE_PATH = "https://texlyre.github.io/texlyre-busytex/core/busytex";
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
@@ -24,6 +27,13 @@ let pdfBlobUrl = null;
 
 function setStatus(text) {
   statusText.textContent = text;
+}
+
+function setStartupState(visible, title = "", detail = "") {
+  if (!startupOverlay) return;
+  startupOverlay.classList.toggle("hidden", !visible);
+  if (startupMessage && title) startupMessage.textContent = title;
+  if (startupDetail && detail) startupDetail.textContent = detail;
 }
 
 function setLog(text) {
@@ -73,9 +83,11 @@ async function initEngine() {
   texInput.value = DEFAULT_TEX;
   setStatus("Initializing BusyTeX...");
   setLog("Loading BusyTeX worker runtime...");
+  setStartupState(true, "Initializing BusyTeX", "Preparing in-browser runtime...");
   compileBtn.disabled = true;
 
   try {
+    setStartupState(true, "Starting worker", "Creating isolated compile environment...");
     busyWorker = new Worker("./busytex-worker-proxy.js");
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -97,6 +109,7 @@ async function initEngine() {
         reject(new Error(event.message || "Worker initialization error"));
       };
 
+      setStartupState(true, "Downloading BusyTeX assets", "Fetching TeX runtime and package indexes...");
       busyWorker.postMessage(getInitPayload());
     });
 
@@ -105,6 +118,8 @@ async function initEngine() {
     compileBtn.textContent = "Compile";
     setStatus("Ready");
     setLog("BusyTeX ready (XeLaTeX mode). Click Compile.");
+    setStartupState(true, "Runtime ready", "Initialization complete.");
+    setTimeout(() => setStartupState(false), 450);
   } catch (error) {
     workerReady = false;
     setStatus("Error");
@@ -114,6 +129,7 @@ async function initEngine() {
       "The runtime assets are loaded from:\n" +
       `${BUSYTEX_BASE_PATH}`
     );
+    setStartupState(true, "Initialization failed", "See Compiler Log for details.");
     compileBtn.disabled = true;
   }
 }

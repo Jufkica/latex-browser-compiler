@@ -7,56 +7,63 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <p class="eyebrow">Sovereign Architecturalist Interface</p>
-      <h1>TeX Browser Compiler</h1>
-      <p class="subtitle">GitHub Pages compatible. In-browser compilation with no backend.</p>
-    </header>
+  <main class="workspace">
+    <section class="editor-pane">
+      <header class="editor-topbar">
+        <p class="editor-kicker">Sovereign Architecturalist Interface</p>
+        <h1>TeX Browser Compiler</h1>
+      </header>
 
-    <main class="layout">
-      <section class="editor-panel">
-        <div class="panel-header">
-          <h2>Source</h2>
-          <p class="label">Editorial Workspace</p>
+      <div class="editor-surface">
+        <div class="line-gutter" aria-hidden="true">
+          <span>01</span><span>02</span><span>03</span><span>04</span><span>05</span>
+          <span>06</span><span>07</span><span>08</span><span>09</span><span>10</span>
+          <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span>
+          <span>16</span><span>17</span><span>18</span><span>19</span><span>20</span>
+          <span>21</span><span>22</span><span>23</span><span>24</span><span>25</span>
+          <span>26</span><span>27</span><span>28</span><span>29</span><span>30</span>
         </div>
-
-        <div class="row actions">
-          <button id="loadExampleBtn" type="button" class="btn-secondary">Load template</button>
-          <button id="compileBtn" type="button" class="btn-primary" disabled>Initializing engine...</button>
-          <button id="downloadBtn" type="button" class="btn-tertiary" disabled>Download PDF</button>
-        </div>
-
         <textarea id="texInput" spellcheck="false" aria-label="TeX source"></textarea>
+      </div>
+    </section>
 
-        <details class="hint-box">
-          <summary>Compilation notes</summary>
-          <ul>
-            <li>First compile is slower while runtime packages initialize.</li>
-            <li>Keep the page open to reuse in-session cache.</li>
-            <li>All compilation is client-side.</li>
-          </ul>
-        </details>
-      </section>
-
-      <section class="preview-panel">
-        <div class="preview-header">
-          <h2>PDF Preview</h2>
-          <span id="statusText" class="status">Waiting</span>
-        </div>
+    <section class="preview-pane">
+      <div class="preview-header">
+        <h2>PDF Preview</h2>
+        <span id="statusText" class="status">Waiting</span>
+      </div>
+      <div class="paper-stage">
         <div id="pdfContainer" class="pdf-container">
           <p class="placeholder">Compile to preview your PDF here.</p>
         </div>
-      </section>
-    </main>
-
-    <section class="log-panel">
-      <div class="panel-header">
-        <h2>Compiler Log</h2>
-        <p class="label">Technical Trace</p>
       </div>
-      <pre id="logOutput"></pre>
     </section>
+  </main>
+
+  <section class="log-panel">
+    <div class="log-header">
+      <h2>Compiler Log</h2>
+      <p class="label">Technical Trace</p>
+    </div>
+    <pre id="logOutput"></pre>
+  </section>
+
+  <nav class="floating-controls">
+    <div class="live-indicator">
+      <span class="live-dot"></span>
+      <span>Live Render</span>
+    </div>
+    <button id="loadExampleBtn" type="button" class="btn-secondary">Load template</button>
+    <button id="compileBtn" type="button" class="btn-primary" disabled>Initializing...</button>
+    <button id="downloadBtn" type="button" class="btn-tertiary" disabled>Download PDF</button>
+  </nav>
+
+  <div id="startupOverlay" class="startup-overlay" role="status" aria-live="polite">
+    <div class="startup-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="startupMessage" class="startup-title">Initializing BusyTeX</p>
+      <p id="startupDetail" class="startup-detail">Preparing in-browser runtime...</p>
+    </div>
   </div>
 
   <script type="module" src="app.js"></script>
