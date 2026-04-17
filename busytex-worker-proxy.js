@@ -1,8 +1,8 @@
 /*
   Local same-origin worker wrapper for BusyTeX.
-  We load the pipeline script with an absolute URL to avoid relative path issues.
+  Pipeline and runtime assets are vendored under /vendor/busytex.
 */
-self.importScripts("https://texlyre.github.io/texlyre-busytex/core/busytex/busytex_pipeline.js");
+self.importScripts("./vendor/busytex/busytex_pipeline.js");
 
 self.pipeline = null;
 

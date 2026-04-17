@@ -50,8 +50,8 @@ No backend server is required for web mode. Compilation runs directly in the bro
 - First compile can be slower due to runtime/package initialization.
 - Browser mode is fully client-side.
 - Keep the tab open to benefit from in-session cache behavior.
-- BusyTeX runtime assets are loaded from:
-  `https://texlyre.github.io/texlyre-busytex/core/busytex`
+- BusyTeX runtime assets are vendored in this repository under:
+  `vendor/busytex`
 
 ## Optional Desktop Mode
 

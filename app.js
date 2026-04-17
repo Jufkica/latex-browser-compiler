@@ -11,7 +11,7 @@ const startupDetail = document.getElementById("startupDetail");
 const logPanel = document.getElementById("logPanel");
 const logToggle = document.getElementById("logToggle");
 
-const BUSYTEX_BASE_PATH = "https://texlyre.github.io/texlyre-busytex/core/busytex";
+const BUSYTEX_BASE_PATH = "./vendor/busytex";
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
 const COMPILE_PASSES = 2;
 const INIT_MAX_ATTEMPTS = 2;
@@ -175,15 +175,14 @@ function runCompilePass(texSource) {
 }
 
 function getInitPayload(profile = "full") {
-  const texliveBasic = `${BUSYTEX_BASE_PATH}/texlive-basic.js`;
   const texliveExtra = `${BUSYTEX_BASE_PATH}/texlive-extra.js`;
 
   if (profile === "core") {
     return {
       busytex_js: `${BUSYTEX_BASE_PATH}/busytex.js`,
       busytex_wasm: `${BUSYTEX_BASE_PATH}/busytex.wasm`,
-      preload_data_packages_js: [texliveBasic],
-      data_packages_js: [texliveBasic],
+      preload_data_packages_js: [texliveExtra],
+      data_packages_js: [texliveExtra],
       texmf_local: [],
       preload: true,
     };
@@ -192,8 +191,8 @@ function getInitPayload(profile = "full") {
   return {
     busytex_js: `${BUSYTEX_BASE_PATH}/busytex.js`,
     busytex_wasm: `${BUSYTEX_BASE_PATH}/busytex.wasm`,
-    preload_data_packages_js: [texliveBasic, texliveExtra],
-    data_packages_js: [texliveBasic],
+    preload_data_packages_js: [texliveExtra],
+    data_packages_js: [texliveExtra],
     texmf_local: [],
     preload: true,
   };
