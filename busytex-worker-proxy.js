@@ -1,8 +1,8 @@
 /*
   Local same-origin worker wrapper for BusyTeX.
-  Pipeline and runtime assets are vendored under /vendor/busytex.
+  Pipeline and runtime assets are vendored under /vendor/busytex/busytex.
 */
-self.importScripts("./vendor/busytex/busytex_pipeline.js");
+self.importScripts("./vendor/busytex/busytex/busytex_pipeline.js");
 
 self.pipeline = null;
 

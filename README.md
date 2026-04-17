@@ -51,7 +51,7 @@ No backend server is required for web mode. Compilation runs directly in the bro
 - Browser mode is fully client-side.
 - Keep the tab open to benefit from in-session cache behavior.
 - BusyTeX runtime assets are vendored in this repository under:
-  `vendor/busytex`
+  `vendor/busytex/busytex`
 
 ## Optional Desktop Mode
 

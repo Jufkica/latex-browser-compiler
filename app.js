@@ -11,7 +11,7 @@ const startupDetail = document.getElementById("startupDetail");
 const logPanel = document.getElementById("logPanel");
 const logToggle = document.getElementById("logToggle");
 
-const BUSYTEX_BASE_PATH = "./vendor/busytex";
+const BUSYTEX_BASE_PATH = "./vendor/busytex/busytex";
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
 const COMPILE_PASSES = 2;
 const INIT_MAX_ATTEMPTS = 2;
