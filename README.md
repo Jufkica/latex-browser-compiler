@@ -2,6 +2,8 @@
 
 In-browser LaTeX to PDF compiler and editor, fully static and GitHub Pages compatible.
 
+Live page: [https://jufkica.github.io/latex-browser-compiler/](https://jufkica.github.io/latex-browser-compiler/)
+
 No backend server is required for web mode. Compilation runs directly in the browser using WebAssembly.
 
 ## Features
