@@ -13,6 +13,7 @@ No backend server is required for web mode. Compilation runs directly in the bro
 - Download generated PDF
 - Load a built-in starter template
 - Uses BusyTeX (`texlyre-busytex`) instead of SwiftLaTeX
+- Includes a small vendored TeX tree under `texmf-local/` for common missing packages (for example `enumitem`)
 - Deployable on GitHub Pages (static hosting only)
 
 ## Project Structure
@@ -22,6 +23,7 @@ No backend server is required for web mode. Compilation runs directly in the bro
 ├── index.html                # Web UI entry point
 ├── styles.css                # UI styles
 ├── app.js                    # Compile/preview/download logic
+├── texmf-local/              # Optional extra LaTeX packages for BusyTeX
 ├── .github/workflows/pages.yml  # Pages deploy workflow
 ├── tex_compiler.py           # Optional desktop Python app
 ├── setup_and_run.bat         # Optional desktop launcher

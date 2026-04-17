@@ -15,6 +15,10 @@ const BUSYTEX_BASE_PATH = new URL("./vendor/busytex/busytex/", window.location.h
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
 const COMPILE_PASSES = 2;
 const INIT_MAX_ATTEMPTS = 2;
+const ENUMITEM_STY_URL = new URL(
+  "./texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty",
+  window.location.href
+).href;
 const DEFAULT_TEX = `\\documentclass{article}
 \\title{BusyTeX Browser Compile}
 \\author{GitHub Pages Static App}
@@ -28,6 +32,8 @@ Hello from BusyTeX in your browser.
 let busyWorker = null;
 let workerReady = false;
 let pdfBlobUrl = null;
+let enumitemStyText = null;
+let enumitemStyPromise = null;
 
 function setStatus(text) {
   statusText.textContent = text;
@@ -128,15 +134,46 @@ function applyCompatibilityFixes(texSource, compileLog) {
       notes.push("Auto-enabled `xcolor` table support for `\\rowcolor`.");
     }
   }
+
+  const enumitemMissingPattern = /File `enumitem\.sty' not found/i;
+  if (enumitemMissingPattern.test(compileLog || "") && /\\usepackage(?:\[[^\]]*\])?\{enumitem\}/.test(source)) {
+    notes.push(
+      "Missing `enumitem.sty` detected. The next compile attempt will include a vendored copy under `texmf-local/texmf-dist/`."
+    );
+  }
   return { source, notes };
+}
+
+function usesEnumitemPackage(texSource) {
+  return /\\usepackage(?:\[[^\]]*\])?\{[^}]*\benumitem\b[^}]*\}/.test(texSource);
+}
+
+async function ensureEnumitemStyText() {
+  if (enumitemStyText) return enumitemStyText;
+  if (!enumitemStyPromise) {
+    enumitemStyPromise = fetch(ENUMITEM_STY_URL).then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch enumitem.sty (HTTP ${response.status})`);
+      }
+      return response.text();
+    });
+  }
+  enumitemStyText = await enumitemStyPromise;
+  return enumitemStyText;
 }
 
 function hasLatexFatalError(compileLog) {
   if (!compileLog) return false;
-  return /(^|\n)!\s+/m.test(compileLog);
+  if (/(^|\n)!\s+/m.test(compileLog)) return true;
+  if (/(^|\n)! LaTeX Error:/m.test(compileLog)) return true;
+  if (/Emergency stop\./m.test(compileLog)) return true;
+  if (/\bFatal error\b/i.test(compileLog)) return true;
+  if (/No pages of output\./m.test(compileLog)) return true;
+  if (/xdvipdfmx:fatal:/i.test(compileLog)) return true;
+  return false;
 }
 
-function runCompilePass(texSource) {
+function runCompilePass(texSource, extraFiles = []) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error("Compilation timed out"));
@@ -163,8 +200,10 @@ function runCompilePass(texSource) {
       reject(new Error(event.message || "Worker compilation error"));
     };
 
+    const files = [{ path: "main.tex", contents: texSource }, ...extraFiles];
+
     busyWorker.postMessage({
-      files: [{ path: "main.tex", contents: texSource }],
+      files,
       main_tex_path: "main.tex",
       bibtex: null,
       verbose: "info",
@@ -340,10 +379,23 @@ async function compileCurrentTex() {
     let lastNonZeroExit = null;
     const passLogs = [];
     const compatibilityNotes = [];
+    let enumitemExtraFiles = [];
+
+    if (usesEnumitemPackage(sourceToCompile)) {
+      try {
+        const enumitemContents = await ensureEnumitemStyText();
+        enumitemExtraFiles = [
+          { path: "texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty", contents: enumitemContents },
+        ];
+        compatibilityNotes.push("Bundled `enumitem.sty` from this site's `texmf-local/` tree for BusyTeX.");
+      } catch (error) {
+        compatibilityNotes.push(`Could not load bundled enumitem.sty: ${String(error)}`);
+      }
+    }
 
     for (let pass = 1; pass <= COMPILE_PASSES; pass += 1) {
       setStatus(`Compiling (pass ${pass}/${COMPILE_PASSES})...`);
-      result = await runCompilePass(sourceToCompile);
+      result = await runCompilePass(sourceToCompile, enumitemExtraFiles);
       const passLog = result.log || "";
       const passHasFatalError = hasLatexFatalError(passLog);
       passLogs.push(`--- Pass ${pass}/${COMPILE_PASSES} ---\n${passLog}`.trim());
@@ -356,6 +408,17 @@ async function compileCurrentTex() {
             sourceToCompile = fixResult.source;
             compatibilityNotes.push(...fixResult.notes);
             passLogs.push("Applied compatibility fix. Retrying compilation...");
+            if (usesEnumitemPackage(sourceToCompile) && enumitemExtraFiles.length === 0) {
+              try {
+                const enumitemContents = await ensureEnumitemStyText();
+                enumitemExtraFiles = [
+                  { path: "texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty", contents: enumitemContents },
+                ];
+                compatibilityNotes.push("Bundled `enumitem.sty` from this site's `texmf-local/` tree for BusyTeX.");
+              } catch (error) {
+                compatibilityNotes.push(`Could not load bundled enumitem.sty: ${String(error)}`);
+              }
+            }
             continue;
           }
         }
