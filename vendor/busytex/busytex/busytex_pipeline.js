@@ -279,6 +279,24 @@ class BusytexPipeline {
             dirs.add(dirpath);
         };
 
+        /**
+         * BusyTeX writes compile inputs under `project_dir`, but `TEXMFDIST` includes separate
+         * local roots such as `/texmf-local/texmf-dist` (see `texmf_local` init option).
+         * Paths like `texmf-local/texmf-dist/...` must therefore resolve to `/texmf-local/...`,
+         * not `/home/web_user/project_dir/texmf-local/...`, or kpathsea will never see them.
+         */
+        this.resolve_workspace_path = (PATH, project_dir, user_path) => {
+            const normalized = String(user_path || '').replace(/\\/g, '/');
+            if (!normalized)
+                return PATH.join(project_dir, user_path);
+            for (const root of texmf_local) {
+                const root_name = root.replace(/^\/+/, '');
+                if (root_name && (normalized === root_name || normalized.startsWith(`${root_name}/`)))
+                    return `/${normalized}`;
+            }
+            return PATH.join(project_dir, user_path);
+        };
+
         this.bibtex_resolver = new BusytexBibtexResolver();
         this.data_package_resolver = new BusytexDataPackageResolver(data_packages_js, BusytexPipeline.texmf_system, texmf_local);
         this.wasm_module_promise = fetch(busytex_wasm).then(response => {
@@ -583,7 +601,7 @@ class BusytexPipeline {
 
         let dirs = new Set(['/', this.project_dir]);
         for (const { path, contents } of files.sort((lhs, rhs) => lhs['path'] < rhs['path'] ? -1 : 1)) {
-            const absolute_path = PATH.join(this.project_dir, path);
+            const absolute_path = this.resolve_workspace_path(PATH, this.project_dir, path);
             if (contents == null)
                 this.mkdir_p(FS, PATH, absolute_path, dirs);
             else {
