@@ -20,6 +20,8 @@ const ENUMITEM_STY_URL = new URL(
   window.location.href
 ).href;
 const BUSYTEX_TEXMF_LOCAL_MOUNT = "/texmf-local";
+/** Project-relative TDS path written under BusyTeX's project MEMFS (must not start with `/`; see PATH.join). */
+const BUSYTEX_ENUMITEM_STY_PROJECT_PATH = "texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty";
 const DEFAULT_TEX = `\\documentclass{article}
 \\title{BusyTeX Browser Compile}
 \\author{GitHub Pages Static App}
@@ -385,11 +387,9 @@ async function compileCurrentTex() {
     if (usesEnumitemPackage(sourceToCompile)) {
       try {
         const enumitemContents = await ensureEnumitemStyText();
-        enumitemExtraFiles = [
-          { path: `${BUSYTEX_TEXMF_LOCAL_MOUNT}/texmf-dist/tex/latex/enumitem/enumitem.sty`, contents: enumitemContents },
-        ];
+        enumitemExtraFiles = [{ path: BUSYTEX_ENUMITEM_STY_PROJECT_PATH, contents: enumitemContents }];
         compatibilityNotes.push(
-          "Bundled `enumitem.sty` from this site's static `texmf-local/` tree and mounted it at `/texmf-local/texmf-dist/` for BusyTeX."
+          "Bundled `enumitem.sty` from this site's static tree into the compile workspace as `texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty` (BusyTeX local texmf)."
         );
       } catch (error) {
         compatibilityNotes.push(`Could not load bundled enumitem.sty: ${String(error)}`);
@@ -414,11 +414,9 @@ async function compileCurrentTex() {
             if (usesEnumitemPackage(sourceToCompile) && enumitemExtraFiles.length === 0) {
               try {
                 const enumitemContents = await ensureEnumitemStyText();
-                enumitemExtraFiles = [
-                  { path: `${BUSYTEX_TEXMF_LOCAL_MOUNT}/texmf-dist/tex/latex/enumitem/enumitem.sty`, contents: enumitemContents },
-                ];
+                enumitemExtraFiles = [{ path: BUSYTEX_ENUMITEM_STY_PROJECT_PATH, contents: enumitemContents }];
                 compatibilityNotes.push(
-                  "Bundled `enumitem.sty` from this site's static `texmf-local/` tree and mounted it at `/texmf-local/texmf-dist/` for BusyTeX."
+                  "Bundled `enumitem.sty` from this site's static tree into the compile workspace as `texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty` (BusyTeX local texmf)."
                 );
               } catch (error) {
                 compatibilityNotes.push(`Could not load bundled enumitem.sty: ${String(error)}`);
