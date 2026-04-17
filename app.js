@@ -208,7 +208,7 @@ function sleep(ms) {
 }
 
 async function initializeWorkerOnce(payload) {
-  busyWorker = new Worker("./busytex-worker-proxy.js");
+  busyWorker = new Worker(`${BUSYTEX_BASE_PATH}/busytex_worker.js`);
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error("Timeout waiting for BusyTeX worker initialization"));
@@ -226,7 +226,11 @@ async function initializeWorkerOnce(payload) {
 
     busyWorker.onerror = (event) => {
       clearTimeout(timeout);
-      reject(new Error(event.message || "Worker initialization error"));
+      const location =
+        event && event.filename
+          ? `${event.filename}${event.lineno ? `:${event.lineno}` : ""}${event.colno ? `:${event.colno}` : ""}`
+          : "unknown location";
+      reject(new Error(`${event.message || "Worker initialization error"} @ ${location}`));
     };
 
     busyWorker.postMessage(payload);
