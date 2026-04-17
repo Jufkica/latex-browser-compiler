@@ -11,7 +11,7 @@ const startupDetail = document.getElementById("startupDetail");
 const logPanel = document.getElementById("logPanel");
 const logToggle = document.getElementById("logToggle");
 
-const BUSYTEX_BASE_PATH = "./vendor/busytex/busytex";
+const BUSYTEX_BASE_PATH = new URL("./vendor/busytex/busytex/", window.location.href).href;
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
 const COMPILE_PASSES = 2;
 const INIT_MAX_ATTEMPTS = 2;
@@ -175,12 +175,14 @@ function runCompilePass(texSource) {
 }
 
 function getInitPayload(profile = "full") {
-  const texliveExtra = `${BUSYTEX_BASE_PATH}/texlive-extra.js`;
+  const texliveExtra = new URL("./texlive-extra.js", BUSYTEX_BASE_PATH).href;
+  const busytexJs = new URL("./busytex.js", BUSYTEX_BASE_PATH).href;
+  const busytexWasm = new URL("./busytex.wasm", BUSYTEX_BASE_PATH).href;
 
   if (profile === "core") {
     return {
-      busytex_js: `${BUSYTEX_BASE_PATH}/busytex.js`,
-      busytex_wasm: `${BUSYTEX_BASE_PATH}/busytex.wasm`,
+      busytex_js: busytexJs,
+      busytex_wasm: busytexWasm,
       preload_data_packages_js: [texliveExtra],
       data_packages_js: [texliveExtra],
       texmf_local: [],
@@ -189,8 +191,8 @@ function getInitPayload(profile = "full") {
   }
 
   return {
-    busytex_js: `${BUSYTEX_BASE_PATH}/busytex.js`,
-    busytex_wasm: `${BUSYTEX_BASE_PATH}/busytex.wasm`,
+    busytex_js: busytexJs,
+    busytex_wasm: busytexWasm,
     preload_data_packages_js: [texliveExtra],
     data_packages_js: [texliveExtra],
     texmf_local: [],
@@ -208,7 +210,7 @@ function sleep(ms) {
 }
 
 async function initializeWorkerOnce(payload) {
-  busyWorker = new Worker(`${BUSYTEX_BASE_PATH}/busytex_worker.js`);
+  busyWorker = new Worker(new URL("./busytex_worker.js", BUSYTEX_BASE_PATH).href);
   await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error("Timeout waiting for BusyTeX worker initialization"));
