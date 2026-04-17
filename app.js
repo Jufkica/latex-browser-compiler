@@ -130,6 +130,11 @@ function applyCompatibilityFixes(texSource, compileLog) {
   return { source, notes };
 }
 
+function hasLatexFatalError(compileLog) {
+  if (!compileLog) return false;
+  return /(^|\n)!\s+/m.test(compileLog);
+}
+
 function runCompilePass(texSource) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -257,12 +262,14 @@ async function compileCurrentTex() {
     for (let pass = 1; pass <= COMPILE_PASSES; pass += 1) {
       setStatus(`Compiling (pass ${pass}/${COMPILE_PASSES})...`);
       result = await runCompilePass(sourceToCompile);
-      passLogs.push(`--- Pass ${pass}/${COMPILE_PASSES} ---\n${result.log || ""}`.trim());
+      const passLog = result.log || "";
+      const passHasFatalError = hasLatexFatalError(passLog);
+      passLogs.push(`--- Pass ${pass}/${COMPILE_PASSES} ---\n${passLog}`.trim());
 
-      if (result.exit_code !== 0) {
+      if (result.exit_code !== 0 || passHasFatalError) {
         lastNonZeroExit = result.exit_code;
         if (pass === 1) {
-          const fixResult = applyCompatibilityFixes(sourceToCompile, result.log || "");
+          const fixResult = applyCompatibilityFixes(sourceToCompile, passLog);
           if (fixResult.source !== sourceToCompile) {
             sourceToCompile = fixResult.source;
             compatibilityNotes.push(...fixResult.notes);
@@ -277,7 +284,8 @@ async function compileCurrentTex() {
     const combinedLog = [...compatibilityNotes, ...passLogs].join("\n\n").trim();
     setLog(combinedLog || logOutput.textContent || "");
 
-    if (result?.exit_code === 0 && result.pdf) {
+    const finalPassHasFatalError = hasLatexFatalError(result?.log || "");
+    if (result?.exit_code === 0 && !finalPassHasFatalError && result.pdf) {
       setPdfPreview(result.pdf);
       setStatus("Success");
     } else {
