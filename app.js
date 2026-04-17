@@ -19,6 +19,7 @@ const ENUMITEM_STY_URL = new URL(
   "./texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty",
   window.location.href
 ).href;
+const BUSYTEX_TEXMF_LOCAL_MOUNT = "/texmf-local";
 const DEFAULT_TEX = `\\documentclass{article}
 \\title{BusyTeX Browser Compile}
 \\author{GitHub Pages Static App}
@@ -138,7 +139,7 @@ function applyCompatibilityFixes(texSource, compileLog) {
   const enumitemMissingPattern = /File `enumitem\.sty' not found/i;
   if (enumitemMissingPattern.test(compileLog || "") && /\\usepackage(?:\[[^\]]*\])?\{enumitem\}/.test(source)) {
     notes.push(
-      "Missing `enumitem.sty` detected. The next compile attempt will include a vendored copy under `texmf-local/texmf-dist/`."
+      "Missing `enumitem.sty` detected. The next compile attempt will include a vendored copy mounted at `/texmf-local/texmf-dist/` inside BusyTeX."
     );
   }
   return { source, notes };
@@ -165,7 +166,7 @@ async function ensureEnumitemStyText() {
 function hasLatexFatalError(compileLog) {
   if (!compileLog) return false;
   if (/(^|\n)!\s+/m.test(compileLog)) return true;
-  if (/(^|\n)! LaTeX Error:/m.test(compileLog)) return true;
+  if (/LaTeX Error:/m.test(compileLog)) return true;
   if (/Emergency stop\./m.test(compileLog)) return true;
   if (/\bFatal error\b/i.test(compileLog)) return true;
   if (/No pages of output\./m.test(compileLog)) return true;
@@ -224,7 +225,7 @@ function getInitPayload(profile = "full") {
       busytex_wasm: busytexWasm,
       preload_data_packages_js: [texliveExtra],
       data_packages_js: [texliveExtra],
-      texmf_local: [],
+      texmf_local: [BUSYTEX_TEXMF_LOCAL_MOUNT],
       preload: true,
     };
   }
@@ -234,7 +235,7 @@ function getInitPayload(profile = "full") {
     busytex_wasm: busytexWasm,
     preload_data_packages_js: [texliveExtra],
     data_packages_js: [texliveExtra],
-    texmf_local: [],
+    texmf_local: [BUSYTEX_TEXMF_LOCAL_MOUNT],
     preload: true,
   };
 }
@@ -385,9 +386,11 @@ async function compileCurrentTex() {
       try {
         const enumitemContents = await ensureEnumitemStyText();
         enumitemExtraFiles = [
-          { path: "texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty", contents: enumitemContents },
+          { path: `${BUSYTEX_TEXMF_LOCAL_MOUNT}/texmf-dist/tex/latex/enumitem/enumitem.sty`, contents: enumitemContents },
         ];
-        compatibilityNotes.push("Bundled `enumitem.sty` from this site's `texmf-local/` tree for BusyTeX.");
+        compatibilityNotes.push(
+          "Bundled `enumitem.sty` from this site's static `texmf-local/` tree and mounted it at `/texmf-local/texmf-dist/` for BusyTeX."
+        );
       } catch (error) {
         compatibilityNotes.push(`Could not load bundled enumitem.sty: ${String(error)}`);
       }
@@ -412,9 +415,11 @@ async function compileCurrentTex() {
               try {
                 const enumitemContents = await ensureEnumitemStyText();
                 enumitemExtraFiles = [
-                  { path: "texmf-local/texmf-dist/tex/latex/enumitem/enumitem.sty", contents: enumitemContents },
+                  { path: `${BUSYTEX_TEXMF_LOCAL_MOUNT}/texmf-dist/tex/latex/enumitem/enumitem.sty`, contents: enumitemContents },
                 ];
-                compatibilityNotes.push("Bundled `enumitem.sty` from this site's `texmf-local/` tree for BusyTeX.");
+                compatibilityNotes.push(
+                  "Bundled `enumitem.sty` from this site's static `texmf-local/` tree and mounted it at `/texmf-local/texmf-dist/` for BusyTeX."
+                );
               } catch (error) {
                 compatibilityNotes.push(`Could not load bundled enumitem.sty: ${String(error)}`);
               }
