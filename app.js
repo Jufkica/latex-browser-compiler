@@ -13,6 +13,7 @@ const logToggle = document.getElementById("logToggle");
 
 const BUSYTEX_BASE_PATH = "https://texlyre.github.io/texlyre-busytex/core/busytex";
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
+const COMPILE_PASSES = 2;
 const DEFAULT_TEX = `\\documentclass{article}
 \\title{BusyTeX Browser Compile}
 \\author{GitHub Pages Static App}
@@ -78,6 +79,93 @@ function setPdfPreview(pdfBytes) {
   pdfBlobUrl = URL.createObjectURL(blob);
   pdfContainer.innerHTML = `<embed src="${pdfBlobUrl}" type="application/pdf">`;
   downloadBtn.disabled = false;
+}
+
+function enableXcolorTableSupport(texSource) {
+  if (!/\\rowcolor\b/.test(texSource)) {
+    return { source: texSource, changed: false };
+  }
+
+  const xcolorPattern = /\\usepackage(?:\[([^\]]*)\])?\{xcolor\}/;
+  const xcolorMatch = texSource.match(xcolorPattern);
+  if (xcolorMatch) {
+    const currentOptions = (xcolorMatch[1] || "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (currentOptions.includes("table")) {
+      return { source: texSource, changed: false };
+    }
+
+    const updatedOptions = [...currentOptions, "table"].join(",");
+    const replacement = `\\usepackage[${updatedOptions}]{xcolor}`;
+    return {
+      source: texSource.replace(xcolorPattern, replacement),
+      changed: true,
+    };
+  }
+
+  const docclassPattern = /(\\documentclass(?:\[[^\]]*\])?\{[^}]+\})/;
+  if (!docclassPattern.test(texSource)) {
+    return { source: texSource, changed: false };
+  }
+
+  return {
+    source: texSource.replace(docclassPattern, `$1\n\\usepackage[table]{xcolor}`),
+    changed: true,
+  };
+}
+
+function applyCompatibilityFixes(texSource, compileLog) {
+  let source = texSource;
+  const notes = [];
+  const rowcolorUndefinedPattern = /Undefined control sequence[\s\S]*\\rowcolor/;
+  if (rowcolorUndefinedPattern.test(compileLog || "")) {
+    const result = enableXcolorTableSupport(source);
+    if (result.changed) {
+      source = result.source;
+      notes.push("Auto-enabled `xcolor` table support for `\\rowcolor`.");
+    }
+  }
+  return { source, notes };
+}
+
+function runCompilePass(texSource) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Compilation timed out"));
+    }, 120000);
+
+    busyWorker.onmessage = ({ data }) => {
+      if (data?.print) {
+        appendLog(data.print);
+        return;
+      }
+      if (data?.exception) {
+        clearTimeout(timeout);
+        reject(new Error(data.exception));
+        return;
+      }
+      if (data && Object.prototype.hasOwnProperty.call(data, "pdf")) {
+        clearTimeout(timeout);
+        resolve(data);
+      }
+    };
+
+    busyWorker.onerror = (event) => {
+      clearTimeout(timeout);
+      reject(new Error(event.message || "Worker compilation error"));
+    };
+
+    busyWorker.postMessage({
+      files: [{ path: "main.tex", contents: texSource }],
+      main_tex_path: "main.tex",
+      bibtex: null,
+      verbose: "info",
+      driver: BUSYTEX_DRIVER,
+      data_packages_js: null,
+    });
+  });
 }
 
 function getInitPayload() {
@@ -156,52 +244,44 @@ async function compileCurrentTex() {
   }
 
   setButtonsCompiling(true);
-  setStatus("Compiling...");
+  setStatus("Compiling (pass 1/2)...");
   setLog("Compiling...");
 
   try {
-    const result = await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("Compilation timed out"));
-      }, 120000);
+    let sourceToCompile = texInput.value;
+    let result = null;
+    let lastNonZeroExit = null;
+    const passLogs = [];
+    const compatibilityNotes = [];
 
-      busyWorker.onmessage = ({ data }) => {
-        if (data?.print) {
-          appendLog(data.print);
-          return;
+    for (let pass = 1; pass <= COMPILE_PASSES; pass += 1) {
+      setStatus(`Compiling (pass ${pass}/${COMPILE_PASSES})...`);
+      result = await runCompilePass(sourceToCompile);
+      passLogs.push(`--- Pass ${pass}/${COMPILE_PASSES} ---\n${result.log || ""}`.trim());
+
+      if (result.exit_code !== 0) {
+        lastNonZeroExit = result.exit_code;
+        if (pass === 1) {
+          const fixResult = applyCompatibilityFixes(sourceToCompile, result.log || "");
+          if (fixResult.source !== sourceToCompile) {
+            sourceToCompile = fixResult.source;
+            compatibilityNotes.push(...fixResult.notes);
+            passLogs.push("Applied compatibility fix. Retrying compilation...");
+            continue;
+          }
         }
-        if (data?.exception) {
-          clearTimeout(timeout);
-          reject(new Error(data.exception));
-          return;
-        }
-        if (data && Object.prototype.hasOwnProperty.call(data, "pdf")) {
-          clearTimeout(timeout);
-          resolve(data);
-        }
-      };
+        break;
+      }
+    }
 
-      busyWorker.onerror = (event) => {
-        clearTimeout(timeout);
-        reject(new Error(event.message || "Worker compilation error"));
-      };
+    const combinedLog = [...compatibilityNotes, ...passLogs].join("\n\n").trim();
+    setLog(combinedLog || logOutput.textContent || "");
 
-      busyWorker.postMessage({
-        files: [{ path: "main.tex", contents: texInput.value }],
-        main_tex_path: "main.tex",
-        bibtex: null,
-        verbose: "info",
-        driver: BUSYTEX_DRIVER,
-        data_packages_js: null,
-      });
-    });
-    setLog(result.log || logOutput.textContent || "");
-
-    if (result.exit_code === 0 && result.pdf) {
+    if (result?.exit_code === 0 && result.pdf) {
       setPdfPreview(result.pdf);
       setStatus("Success");
     } else {
-      setStatus(`Failed (${result.exit_code})`);
+      setStatus(`Failed (${lastNonZeroExit ?? "unknown"})`);
       downloadBtn.disabled = true;
       setLogPanelCollapsed(false);
     }
