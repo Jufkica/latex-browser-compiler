@@ -14,6 +14,7 @@ const logToggle = document.getElementById("logToggle");
 const BUSYTEX_BASE_PATH = "https://texlyre.github.io/texlyre-busytex/core/busytex";
 const BUSYTEX_DRIVER = "xetex_bibtex8_dvipdfmx";
 const COMPILE_PASSES = 2;
+const INIT_MAX_ATTEMPTS = 2;
 const DEFAULT_TEX = `\\documentclass{article}
 \\title{BusyTeX Browser Compile}
 \\author{GitHub Pages Static App}
@@ -173,9 +174,21 @@ function runCompilePass(texSource) {
   });
 }
 
-function getInitPayload() {
+function getInitPayload(profile = "full") {
   const texliveBasic = `${BUSYTEX_BASE_PATH}/texlive-basic.js`;
   const texliveExtra = `${BUSYTEX_BASE_PATH}/texlive-extra.js`;
+
+  if (profile === "core") {
+    return {
+      busytex_js: `${BUSYTEX_BASE_PATH}/busytex.js`,
+      busytex_wasm: `${BUSYTEX_BASE_PATH}/busytex.wasm`,
+      preload_data_packages_js: [texliveBasic],
+      data_packages_js: [texliveBasic],
+      texmf_local: [],
+      preload: true,
+    };
+  }
+
   return {
     busytex_js: `${BUSYTEX_BASE_PATH}/busytex.js`,
     busytex_wasm: `${BUSYTEX_BASE_PATH}/busytex.wasm`,
@@ -186,6 +199,41 @@ function getInitPayload() {
   };
 }
 
+function isNetworkInitError(error) {
+  const message = String(error || "");
+  return /networkerror|network error|failed to fetch|load_package/i.test(message);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function initializeWorkerOnce(payload) {
+  busyWorker = new Worker("./busytex-worker-proxy.js");
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Timeout waiting for BusyTeX worker initialization"));
+    }, 120000);
+
+    busyWorker.onmessage = ({ data }) => {
+      if (data?.initialized) {
+        clearTimeout(timeout);
+        resolve();
+      } else if (data?.exception) {
+        clearTimeout(timeout);
+        reject(new Error(data.exception));
+      }
+    };
+
+    busyWorker.onerror = (event) => {
+      clearTimeout(timeout);
+      reject(new Error(event.message || "Worker initialization error"));
+    };
+
+    busyWorker.postMessage(payload);
+  });
+}
+
 async function initEngine() {
   texInput.value = DEFAULT_TEX;
   setStatus("Initializing BusyTeX...");
@@ -194,31 +242,60 @@ async function initEngine() {
   compileBtn.disabled = true;
 
   try {
-    setStartupState(true, "Starting worker", "Creating isolated compile environment...");
-    busyWorker = new Worker("./busytex-worker-proxy.js");
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error("Timeout waiting for BusyTeX worker initialization"));
-      }, 120000);
+    const initProfiles = [
+      { id: "full", title: "Full package set", payload: getInitPayload("full") },
+      { id: "core", title: "Core package fallback", payload: getInitPayload("core") },
+    ];
+    let lastError = null;
 
-      busyWorker.onmessage = ({ data }) => {
-        if (data?.initialized) {
-          clearTimeout(timeout);
-          resolve();
-        } else if (data?.exception) {
-          clearTimeout(timeout);
-          reject(new Error(data.exception));
+    for (const profile of initProfiles) {
+      for (let attempt = 1; attempt <= INIT_MAX_ATTEMPTS; attempt += 1) {
+        try {
+          setStartupState(
+            true,
+            `Downloading BusyTeX assets (${profile.title})`,
+            `Attempt ${attempt}/${INIT_MAX_ATTEMPTS}: fetching runtime and package indexes...`
+          );
+
+          if (busyWorker) {
+            busyWorker.terminate();
+            busyWorker = null;
+          }
+
+          await initializeWorkerOnce(profile.payload);
+          if (profile.id === "core") {
+            appendLog("BusyTeX initialized in core fallback mode.");
+          }
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          appendLog(
+            `Initialization attempt failed (${profile.title}, attempt ${attempt}/${INIT_MAX_ATTEMPTS}): ${String(
+              error
+            )}`
+          );
+
+          if (busyWorker) {
+            busyWorker.terminate();
+            busyWorker = null;
+          }
+
+          if (!isNetworkInitError(error) || attempt >= INIT_MAX_ATTEMPTS) {
+            break;
+          }
+          await sleep(900 * attempt);
         }
-      };
+      }
 
-      busyWorker.onerror = (event) => {
-        clearTimeout(timeout);
-        reject(new Error(event.message || "Worker initialization error"));
-      };
+      if (!lastError) {
+        break;
+      }
+    }
 
-      setStartupState(true, "Downloading BusyTeX assets", "Fetching TeX runtime and package indexes...");
-      busyWorker.postMessage(getInitPayload());
-    });
+    if (lastError) {
+      throw lastError;
+    }
 
     workerReady = true;
     compileBtn.disabled = false;
